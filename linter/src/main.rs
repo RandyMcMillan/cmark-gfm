@@ -3,11 +3,12 @@
 //! ## Usage
 //!
 //! ```text
-//! gfm-lint [OPTIONS] <FILE>...
+//! gfm-lint [OPTIONS] <PATH>...
 //!
 //! Options:
 //!   --no-warnings   Suppress warning-level diagnostics
 //!   --json          Output diagnostics as JSON (one object per line)
+//!   --recursive     Recurse into directories
 //!   --help          Print this help
 //! ```
 //!
@@ -27,11 +28,12 @@ use gfm_linter::{lint, Severity};
 
 fn usage() -> ! {
     eprintln!(
-        "Usage: gfm-lint [--no-warnings] [--json] <FILE>...\n\
+        "Usage: gfm-lint [--no-warnings] [--json] [--recursive] <PATH>...\n\
          \n\
          Options:\n\
            --no-warnings   Suppress warning-level diagnostics\n\
            --json          Output diagnostics as JSON (one object per line)\n\
+           --recursive     Recurse into directories\n\
            --help          Print this help\n\
          \n\
          Exit codes:\n\
@@ -44,27 +46,37 @@ fn usage() -> ! {
 }
 
 fn main() {
-    let mut files: Vec<PathBuf> = Vec::new();
+    let mut paths: Vec<PathBuf> = Vec::new();
     let mut no_warnings = false;
     let mut json = false;
+    let mut recursive = false;
 
     for arg in std::env::args().skip(1) {
         match arg.as_str() {
             "--help" | "-h" => usage(),
             "--no-warnings" => no_warnings = true,
             "--json" => json = true,
+            "--recursive" => recursive = true,
             s if s.starts_with('-') => {
                 eprintln!("Unknown option: {s}");
                 usage();
             }
-            _ => files.push(PathBuf::from(&arg)),
+            _ => paths.push(PathBuf::from(&arg)),
         }
     }
 
-    if files.is_empty() {
+    if paths.is_empty() {
         eprintln!("gfm-lint: no input files");
         usage();
     }
+
+    let files = match collect_inputs(&paths, recursive) {
+        Ok(files) => files,
+        Err(message) => {
+            eprintln!("gfm-lint: {message}");
+            process::exit(3);
+        }
+    };
 
     let mut any_error = false;
     let mut any_warning = false;
@@ -111,5 +123,96 @@ fn main() {
         process::exit(2);
     } else {
         process::exit(0);
+    }
+}
+
+fn collect_inputs(paths: &[PathBuf], recursive: bool) -> Result<Vec<PathBuf>, String> {
+    let mut files = Vec::new();
+
+    for path in paths {
+        collect_input(path, recursive, &mut files)?;
+    }
+
+    Ok(files)
+}
+
+fn collect_input(path: &PathBuf, recursive: bool, files: &mut Vec<PathBuf>) -> Result<(), String> {
+    let metadata = std::fs::symlink_metadata(path)
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+
+    if metadata.is_file() {
+        files.push(path.clone());
+        return Ok(());
+    }
+
+    if metadata.is_dir() {
+        if !recursive {
+            return Err(format!(
+                "{}: is a directory (use --recursive)",
+                path.display()
+            ));
+        }
+
+        let mut entries = std::fs::read_dir(path)
+            .map_err(|e| format!("{}: {e}", path.display()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        entries.sort_by_key(|entry| entry.path());
+
+        for entry in entries {
+            collect_input(&entry.path(), recursive, files)?;
+        }
+
+        return Ok(());
+    }
+
+    Err(format!("{}: not a regular file or directory", path.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::collect_inputs;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_temp_dir() -> PathBuf {
+        let mut path = std::env::temp_dir();
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before UNIX_EPOCH")
+            .as_nanos();
+        path.push(format!("gfm-lint-test-{}-{stamp}", std::process::id()));
+        path
+    }
+
+    #[test]
+    fn rejects_directory_without_recursive() {
+        let dir = unique_temp_dir();
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("README.md"), "# Heading\n").unwrap();
+
+        let err = collect_inputs(&[dir.clone()], false).unwrap_err();
+        assert!(
+            err.contains("use --recursive"),
+            "unexpected error: {err}"
+        );
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn recurses_into_directories_when_enabled() {
+        let dir = unique_temp_dir();
+        let nested = dir.join("nested");
+
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(dir.join("README.md"), "# Heading\n").unwrap();
+        fs::write(nested.join("doc.md"), "## Subheading\n").unwrap();
+
+        let files = collect_inputs(&[dir.clone()], true).unwrap();
+        assert_eq!(files, vec![dir.join("README.md"), nested.join("doc.md")]);
+
+        fs::remove_dir_all(&dir).unwrap();
     }
 }
