@@ -1,0 +1,18 @@
+[package]
+name = "gfm-linter"
+version = "0.1.0"
+edition = "2021"
+description = "A Rust markdown linter that enforces the GitHub Flavored Markdown specification"
+license = "BSD-2-Clause"
+
+[[bin]]
+name = "gfm-lint"
+path = "src/main.rs"
+
+[lib]
+name = "gfm_linter"
+path = "src/lib.rs"
+
+[dependencies]
+
+[dev-dependencies]
