@@ -26,6 +26,9 @@
 
 pub mod rules;
 
+#[cfg(feature = "cmark-gfm-ffi")]
+pub mod ffi;
+
 use std::fmt;
 
 /// A single lint diagnostic.
