@@ -5,13 +5,13 @@ edition = "2021"
 description = "A Rust markdown linter that enforces the GitHub Flavored Markdown specification"
 license = "BSD-2-Clause"
 
-[[bin]]
-name = "gfm-lint"
-path = "src/main.rs"
-
 [lib]
 name = "gfm_linter"
 path = "src/lib.rs"
+
+[[bin]]
+name = "gfm-lint"
+path = "src/main.rs"
 
 [features]
 ## Compile the bundled cmark-gfm C library and expose raw FFI bindings
