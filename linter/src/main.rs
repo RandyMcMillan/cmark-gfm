@@ -25,7 +25,7 @@
 use std::path::PathBuf;
 use std::process;
 
-use gfm_linter::{lint, Severity};
+use gfm_linter::{Severity, lint};
 
 fn usage() -> ! {
     eprintln!(
@@ -154,10 +154,7 @@ fn parse_depth(value: &str) -> usize {
     }
 }
 
-fn collect_inputs(
-    paths: &[PathBuf],
-    max_depth: Option<usize>,
-) -> Result<Vec<PathBuf>, String> {
+fn collect_inputs(paths: &[PathBuf], max_depth: Option<usize>) -> Result<Vec<PathBuf>, String> {
     let mut files = Vec::new();
 
     for path in paths {
@@ -172,8 +169,8 @@ fn collect_input(
     max_depth: Option<usize>,
     files: &mut Vec<PathBuf>,
 ) -> Result<(), String> {
-    let metadata = std::fs::symlink_metadata(path)
-        .map_err(|e| format!("{}: {e}", path.display()))?;
+    let metadata =
+        std::fs::symlink_metadata(path).map_err(|e| format!("{}: {e}", path.display()))?;
 
     if metadata.is_file() {
         files.push(path.clone());
@@ -200,14 +197,20 @@ fn collect_input(
                     collect_input(&entry_path, next_depth, files)?;
                 }
             } else {
-                return Err(format!("{}: not a regular file or directory", entry_path.display()));
+                return Err(format!(
+                    "{}: not a regular file or directory",
+                    entry_path.display()
+                ));
             }
         }
 
         return Ok(());
     }
 
-    Err(format!("{}: not a regular file or directory", path.display()))
+    Err(format!(
+        "{}: not a regular file or directory",
+        path.display()
+    ))
 }
 
 #[cfg(test)]

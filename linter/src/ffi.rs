@@ -24,7 +24,7 @@
 //! # }
 //! ```
 
-use std::ffi::{CStr, CString};
+use std::ffi::{CStr /*, CString*/};
 use std::os::raw::{c_char, c_int};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,11 +91,7 @@ extern "C" {
     ///
     /// # Safety
     /// `text` must be a valid pointer to `len` readable bytes.
-    pub fn cmark_markdown_to_html(
-        text: *const c_char,
-        len: usize,
-        options: c_int,
-    ) -> *mut c_char;
+    pub fn cmark_markdown_to_html(text: *const c_char, len: usize, options: c_int) -> *mut c_char;
 
     // ── streaming parser ────────────────────────────────────────────────────
 
@@ -106,11 +102,7 @@ extern "C" {
     ///
     /// # Safety
     /// `buffer` must point to `len` readable bytes.
-    pub fn cmark_parser_feed(
-        parser: *mut CmarkParser,
-        buffer: *const c_char,
-        len: usize,
-    );
+    pub fn cmark_parser_feed(parser: *mut CmarkParser, buffer: *const c_char, len: usize);
 
     /// Finish parsing and return the document root.  The parser is consumed.
     pub fn cmark_parser_finish(parser: *mut CmarkParser) -> *mut CmarkNode;
@@ -157,11 +149,7 @@ extern "C" {
     pub fn cmark_render_xml(root: *mut CmarkNode, options: c_int) -> *mut c_char;
 
     /// Render a parsed AST to LaTeX.  Caller must free the result.
-    pub fn cmark_render_latex(
-        root: *mut CmarkNode,
-        options: c_int,
-        width: c_int,
-    ) -> *mut c_char;
+    pub fn cmark_render_latex(root: *mut CmarkNode, options: c_int, width: c_int) -> *mut c_char;
 
     // ── node lifecycle ──────────────────────────────────────────────────────
 
@@ -251,9 +239,8 @@ pub fn markdown_to_html(source: &str, options: Options) -> String {
     // SAFETY: `bytes.as_ptr()` is valid for `bytes.len()` bytes; the C
     // function returns a heap-allocated, NUL-terminated string which we
     // immediately copy into a Rust String and then free.
-    let raw = unsafe {
-        cmark_markdown_to_html(bytes.as_ptr() as *const c_char, bytes.len(), options.0)
-    };
+    let raw =
+        unsafe { cmark_markdown_to_html(bytes.as_ptr() as *const c_char, bytes.len(), options.0) };
     assert!(!raw.is_null(), "cmark_markdown_to_html returned NULL");
     let s = unsafe { CStr::from_ptr(raw) }
         .to_string_lossy()
@@ -294,8 +281,7 @@ pub fn markdown_to_html_streaming(source: &str, options: Options) -> String {
 pub fn markdown_to_commonmark(source: &str, options: Options, width: c_int) -> String {
     let bytes = source.as_bytes();
     unsafe {
-        let doc =
-            cmark_parse_document(bytes.as_ptr() as *const c_char, bytes.len(), options.0);
+        let doc = cmark_parse_document(bytes.as_ptr() as *const c_char, bytes.len(), options.0);
         assert!(!doc.is_null(), "cmark_parse_document returned NULL");
         let raw = cmark_render_commonmark(doc, options.0, width);
         assert!(!raw.is_null(), "cmark_render_commonmark returned NULL");
@@ -312,8 +298,7 @@ pub fn markdown_to_commonmark(source: &str, options: Options, width: c_int) -> S
 pub fn markdown_to_plaintext(source: &str, options: Options, width: c_int) -> String {
     let bytes = source.as_bytes();
     unsafe {
-        let doc =
-            cmark_parse_document(bytes.as_ptr() as *const c_char, bytes.len(), options.0);
+        let doc = cmark_parse_document(bytes.as_ptr() as *const c_char, bytes.len(), options.0);
         assert!(!doc.is_null(), "cmark_parse_document returned NULL");
         let raw = cmark_render_plaintext(doc, options.0, width);
         assert!(!raw.is_null(), "cmark_render_plaintext returned NULL");
@@ -328,8 +313,7 @@ pub fn markdown_to_plaintext(source: &str, options: Options, width: c_int) -> St
 pub fn markdown_to_xml(source: &str, options: Options) -> String {
     let bytes = source.as_bytes();
     unsafe {
-        let doc =
-            cmark_parse_document(bytes.as_ptr() as *const c_char, bytes.len(), options.0);
+        let doc = cmark_parse_document(bytes.as_ptr() as *const c_char, bytes.len(), options.0);
         assert!(!doc.is_null(), "cmark_parse_document returned NULL");
         let raw = cmark_render_xml(doc, options.0);
         assert!(!raw.is_null(), "cmark_render_xml returned NULL");

@@ -220,7 +220,11 @@ fn is_definition_line(line: &str) -> bool {
 fn normalise_label(label: &str) -> String {
     // Spec §4.7: labels are normalised by collapsing whitespace and
     // case-folding to lower-case.
-    label.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+    label
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
 }
 
 /// Collect all link reference definition labels from the document.

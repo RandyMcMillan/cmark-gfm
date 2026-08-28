@@ -55,9 +55,5 @@ fn is_thematic_break(line: &str) -> Option<char> {
             return None;
         }
     }
-    if count >= 3 {
-        Some(first)
-    } else {
-        None
-    }
+    if count >= 3 { Some(first) } else { None }
 }

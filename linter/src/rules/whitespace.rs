@@ -42,9 +42,8 @@ pub fn check(source: &str, diags: &mut Vec<Diagnostic>) {
             let trailing_len = len - trimmed_end.len();
             if trailing_len > 0 {
                 // Allow exactly two trailing spaces (hard line break)
-                let is_hard_break = trailing_len == 2
-                    && raw.ends_with("  ")
-                    && !trimmed_end.is_empty();
+                let is_hard_break =
+                    trailing_len == 2 && raw.ends_with("  ") && !trimmed_end.is_empty();
                 if !is_hard_break {
                     let col = trimmed_end.len() + 1;
                     let kind = if raw.ends_with('\t') {

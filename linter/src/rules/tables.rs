@@ -96,8 +96,9 @@ pub fn check(source: &str, diags: &mut Vec<Diagnostic>) {
                     line: header_line,
                     col: 1,
                     rule: "MD010",
-                    message: "GFM table header must be followed by a separator row (e.g. `| --- |`)"
-                        .to_string(),
+                    message:
+                        "GFM table header must be followed by a separator row (e.g. `| --- |`)"
+                            .to_string(),
                     severity: Severity::Error,
                 });
             }
@@ -144,7 +145,10 @@ fn split_table_cells(row: &str) -> Vec<&str> {
 
 /// Count the number of non-empty cell slots in a table row.
 fn col_count(row: &str) -> usize {
-    split_table_cells(row).iter().filter(|c| !c.trim().is_empty()).count()
+    split_table_cells(row)
+        .iter()
+        .filter(|c| !c.trim().is_empty())
+        .count()
 }
 
 fn fence_open(trimmed: &str) -> Option<(char, usize)> {

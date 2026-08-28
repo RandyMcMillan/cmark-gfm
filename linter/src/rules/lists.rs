@@ -57,9 +57,7 @@ pub fn check(source: &str, diags: &mut Vec<Diagnostic>) {
                     line: i + 1,
                     col: 1,
                     rule: "MD008",
-                    message: format!(
-                        "Ordered list should start at 1, found {start_num}"
-                    ),
+                    message: format!("Ordered list should start at 1, found {start_num}"),
                     severity: Severity::Warning,
                 });
             }

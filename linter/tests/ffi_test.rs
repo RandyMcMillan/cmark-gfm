@@ -10,9 +10,8 @@
 #![cfg(feature = "cmark-gfm-ffi")]
 
 use gfm_linter::ffi::{
-    self, markdown_to_commonmark, markdown_to_html, markdown_to_html_streaming,
-    markdown_to_plaintext, markdown_to_xml, version, version_string, Options,
-    CMARK_OPT_DEFAULT,
+    self, CMARK_OPT_DEFAULT, Options, markdown_to_commonmark, markdown_to_html,
+    markdown_to_html_streaming, markdown_to_plaintext, markdown_to_xml, version, version_string,
 };
 use std::ffi::CStr;
 use std::os::raw::c_char;
@@ -157,7 +156,10 @@ fn test_html_ordered_list() {
     let html = markdown_to_html(input, Options::DEFAULT);
     println!("  html  : {html:?}");
     assert!(html.contains("<ol>"), "expected <ol>");
-    assert!(html.contains("<li>First</li>") || html.contains("<li>"), "expected list items");
+    assert!(
+        html.contains("<li>First</li>") || html.contains("<li>"),
+        "expected list items"
+    );
     banner_pass("ordered list");
 }
 
@@ -312,8 +314,10 @@ fn test_commonmark_roundtrip() {
     println!("  input : {input:?}");
     println!("  cm    : {cm:?}");
     assert!(cm.contains("Hello"), "expected heading text");
-    assert!(cm.contains("*paragraph*") || cm.contains("_paragraph_"),
-            "expected emphasis preserved");
+    assert!(
+        cm.contains("*paragraph*") || cm.contains("_paragraph_"),
+        "expected emphasis preserved"
+    );
     banner_pass("commonmark round-trip");
 }
 
@@ -345,9 +349,14 @@ fn test_xml_document_structure() {
     let input = "# Hi\n\nParagraph.\n";
     let xml = markdown_to_xml(input, Options::DEFAULT);
     println!("  xml excerpt: {}", &xml[..xml.len().min(300)]);
-    assert!(xml.contains("<?xml") || xml.contains("<document"), "expected XML prolog or <document>");
-    assert!(xml.contains("heading") || xml.contains("atx_heading"),
-            "expected heading element in XML");
+    assert!(
+        xml.contains("<?xml") || xml.contains("<document"),
+        "expected XML prolog or <document>"
+    );
+    assert!(
+        xml.contains("heading") || xml.contains("atx_heading"),
+        "expected heading element in XML"
+    );
     banner_pass("XML document structure");
 }
 
@@ -360,11 +369,7 @@ fn test_raw_cmark_markdown_to_html() {
     banner("FFI (sys): cmark_markdown_to_html raw");
     let md = b"**raw** FFI call\n";
     let raw = unsafe {
-        ffi::cmark_markdown_to_html(
-            md.as_ptr() as *const c_char,
-            md.len(),
-            CMARK_OPT_DEFAULT,
-        )
+        ffi::cmark_markdown_to_html(md.as_ptr() as *const c_char, md.len(), CMARK_OPT_DEFAULT)
     };
     assert!(!raw.is_null(), "raw pointer must not be NULL");
     let s = unsafe { CStr::from_ptr(raw) }.to_str().unwrap().to_owned();
@@ -395,7 +400,9 @@ fn test_raw_parser_lifecycle() {
         let html = CStr::from_ptr(html_raw).to_str().unwrap().to_owned();
         println!("  html: {html:?}");
         assert!(html.contains("<em>parser</em>"), "expected <em> tag");
-        extern "C" { fn free(ptr: *mut std::ffi::c_void); }
+        extern "C" {
+            fn free(ptr: *mut std::ffi::c_void);
+        }
         free(html_raw as *mut _);
         ffi::cmark_node_free(doc);
     }
@@ -424,9 +431,8 @@ fn test_raw_version_functions() {
 fn test_options_bitor() {
     banner("FFI: Options – bitwise OR");
     let combined = Options::SMART | Options::HARDBREAKS | Options::FOOTNOTES;
-    let expected = Options(
-        ffi::CMARK_OPT_SMART | ffi::CMARK_OPT_HARDBREAKS | ffi::CMARK_OPT_FOOTNOTES,
-    );
+    let expected =
+        Options(ffi::CMARK_OPT_SMART | ffi::CMARK_OPT_HARDBREAKS | ffi::CMARK_OPT_FOOTNOTES);
     println!("  combined : {:?}", combined);
     println!("  expected : {:?}", expected);
     assert_eq!(combined, expected);
@@ -452,12 +458,17 @@ fn test_large_document() {
     banner("FFI: markdown_to_html – large document");
     let mut input = String::new();
     for i in 0..500 {
-        input.push_str(&format!("## Section {i}\n\nParagraph {i} with *emphasis*.\n\n"));
+        input.push_str(&format!(
+            "## Section {i}\n\nParagraph {i} with *emphasis*.\n\n"
+        ));
     }
     let html = markdown_to_html(&input, Options::DEFAULT);
     println!("  input length : {} bytes", input.len());
     println!("  html  length : {} bytes", html.len());
-    assert!(html.len() > input.len(), "HTML should be longer than raw markdown");
+    assert!(
+        html.len() > input.len(),
+        "HTML should be longer than raw markdown"
+    );
     assert!(html.contains("<h2>"), "expected h2 headings");
     banner_pass("large document");
 }
@@ -495,6 +506,9 @@ fn test_inline_code() {
     let input = "Use `cargo test` to run tests.\n";
     let html = markdown_to_html(input, Options::DEFAULT);
     println!("  html: {html:?}");
-    assert!(html.contains("<code>cargo test</code>"), "expected inline code");
+    assert!(
+        html.contains("<code>cargo test</code>"),
+        "expected inline code"
+    );
     banner_pass("inline code");
 }

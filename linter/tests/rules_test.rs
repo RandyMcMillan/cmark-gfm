@@ -5,7 +5,7 @@
 //!
 //! The test output uses banner-style reporting for easy diagnosis.
 
-use gfm_linter::{lint, Severity};
+use gfm_linter::{Severity, lint};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // helpers
@@ -16,16 +16,26 @@ fn rule_ids(diags: &[gfm_linter::Diagnostic]) -> Vec<&'static str> {
 }
 
 fn errors(diags: &[gfm_linter::Diagnostic]) -> Vec<&gfm_linter::Diagnostic> {
-    diags.iter().filter(|d| d.severity == Severity::Error).collect()
+    diags
+        .iter()
+        .filter(|d| d.severity == Severity::Error)
+        .collect()
 }
 
 fn warnings(diags: &[gfm_linter::Diagnostic]) -> Vec<&gfm_linter::Diagnostic> {
-    diags.iter().filter(|d| d.severity == Severity::Warning).collect()
+    diags
+        .iter()
+        .filter(|d| d.severity == Severity::Warning)
+        .collect()
 }
 
 fn banner(label: &str) {
     println!("\n╔═══════════════════════════════════════════╗");
-    println!("║  {}{}║", label, " ".repeat(43_usize.saturating_sub(label.len() + 2)));
+    println!(
+        "║  {}{}║",
+        label,
+        " ".repeat(43_usize.saturating_sub(label.len() + 2))
+    );
     println!("╚═══════════════════════════════════════════╝");
 }
 
@@ -60,7 +70,10 @@ fn md001_empty_heading_ok() {
     let src = "#\n## \n";
     let d = lint(src);
     println!("diags: {d:#?}");
-    assert!(!rule_ids(&d).contains(&"MD001"), "empty ATX heading should not trigger MD001");
+    assert!(
+        !rule_ids(&d).contains(&"MD001"),
+        "empty ATX heading should not trigger MD001"
+    );
     println!("  ✔  MD001 empty heading pass");
 }
 
@@ -269,9 +282,18 @@ fn md012_trailing_whitespace() {
     println!("hard-break diags: {d_ok:#?}");
     println!("3-spaces   diags: {d_bad3:#?}");
     println!("1-space    diags: {d_bad1:#?}");
-    assert!(!rule_ids(&d_ok).contains(&"MD012"), "two trailing spaces is valid hard break");
-    assert!(rule_ids(&d_bad3).contains(&"MD012"), "3 trailing spaces should warn");
-    assert!(rule_ids(&d_bad1).contains(&"MD012"), "1 trailing space should warn");
+    assert!(
+        !rule_ids(&d_ok).contains(&"MD012"),
+        "two trailing spaces is valid hard break"
+    );
+    assert!(
+        rule_ids(&d_bad3).contains(&"MD012"),
+        "3 trailing spaces should warn"
+    );
+    assert!(
+        rule_ids(&d_bad1).contains(&"MD012"),
+        "1 trailing space should warn"
+    );
     println!("  ✔  MD012 pass");
 }
 
@@ -344,8 +366,14 @@ fn md016_reference_link_resolution() {
     let d_bad = lint(bad);
     println!("ok  diags: {d_ok:#?}");
     println!("bad diags: {d_bad:#?}");
-    assert!(!rule_ids(&d_ok).contains(&"MD016"), "defined reference should not trigger MD016");
-    assert!(rule_ids(&d_bad).contains(&"MD016"), "undefined reference should trigger MD016");
+    assert!(
+        !rule_ids(&d_ok).contains(&"MD016"),
+        "defined reference should not trigger MD016"
+    );
+    assert!(
+        rule_ids(&d_bad).contains(&"MD016"),
+        "undefined reference should trigger MD016"
+    );
     println!("  ✔  MD016 pass");
 }
 
@@ -367,7 +395,10 @@ fn severity_levels_correct() {
     let d2 = lint("- a\n* b\n");
     let warn2: Vec<_> = warnings(&d2);
     println!("warnings: {warn2:#?}");
-    assert!(!warn2.is_empty(), "inconsistent UL marker should be a warning");
+    assert!(
+        !warn2.is_empty(),
+        "inconsistent UL marker should be a warning"
+    );
     println!("  ✔  Severity pass");
 }
 
@@ -408,6 +439,9 @@ fn main() {
 "#;
     let d = lint(src);
     println!("diags: {d:#?}");
-    assert!(d.is_empty(), "clean document should produce no diagnostics, got: {d:#?}");
+    assert!(
+        d.is_empty(),
+        "clean document should produce no diagnostics, got: {d:#?}"
+    );
     println!("  ✔  Clean document pass");
 }
