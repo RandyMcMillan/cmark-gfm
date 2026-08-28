@@ -24,6 +24,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - name: Add up-upstream remote and fetch
+      run: |
+         git remote add up-upstream https://github.com/commonmark/cmark
+         git fetch up-upstream
     - name: Install valgrind
       run: |
          sudo apt install -y valgrind
@@ -54,6 +58,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - name: Add up-upstream remote and fetch
+      run: |
+         git remote add up-upstream https://github.com/commonmark/cmark
+         git fetch up-upstream
     - name: Build and test
       env:
          CMAKE_OPTIONS: -DCMARK_SHARED=OFF
@@ -75,6 +83,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - name: Add up-upstream remote and fetch
+      shell: bash
+      run: |
+         git remote add up-upstream https://github.com/commonmark/cmark
+         git fetch up-upstream
     - uses: ilammy/msvc-dev-cmd@v1
     - name: Build and test
       run: |
