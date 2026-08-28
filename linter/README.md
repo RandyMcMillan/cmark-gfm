@@ -28,7 +28,7 @@ A Rust markdown linter that enforces the
 ## Usage
 
 ```
-gfm-lint [--no-warnings] [--json] <FILE>...
+gfm-lint [--no-warnings] [--json] [--recursive] [--depth N] <PATH>...
 ```
 
 ### Options
@@ -37,6 +37,8 @@ gfm-lint [--no-warnings] [--json] <FILE>...
 |-----------------|-----------------------------------------------------|
 | `--no-warnings` | Suppress `warning`-level diagnostics                |
 | `--json`        | Output one JSON object per diagnostic (NDJSON)      |
+| `--recursive`   | Recurse into directories without a depth limit      |
+| `--depth N`     | Recurse into directories up to `N` levels deep      |
 | `--help`        | Print help text                                     |
 
 ### Exit codes
@@ -60,6 +62,10 @@ README.md:12:1: error [MD005] Unclosed fenced code block
 $ gfm-lint --json README.md
 {"file":"README.md","line":3,"col":1,"severity":"warning","rule":"MD014","message":"More than one consecutive blank line"}
 ```
+
+Directories are linted at depth `0` by default, so `gfm-lint docs/` only
+checks files directly inside `docs/`. Use `--depth N` to include nested
+subdirectories, or `--recursive` for unlimited depth.
 
 ## Building
 
