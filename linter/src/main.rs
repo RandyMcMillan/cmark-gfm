@@ -8,7 +8,8 @@
 //! Options:
 //!   --no-warnings   Suppress warning-level diagnostics
 //!   --json          Output diagnostics as JSON (one object per line)
-//!   --recursive     Recurse into directories
+//!   --recursive     Recurse into directories without a depth limit
+//!   --depth N       Recurse into directories up to N levels deep
 //!   --help          Print this help
 //! ```
 //!
@@ -28,12 +29,13 @@ use gfm_linter::{lint, Severity};
 
 fn usage() -> ! {
     eprintln!(
-        "Usage: gfm-lint [--no-warnings] [--json] [--recursive] <PATH>...\n\
+        "Usage: gfm-lint [--no-warnings] [--json] [--recursive] [--depth N] <PATH>...\n\
          \n\
          Options:\n\
            --no-warnings   Suppress warning-level diagnostics\n\
            --json          Output diagnostics as JSON (one object per line)\n\
-           --recursive     Recurse into directories\n\
+           --recursive     Recurse into directories without a depth limit\n\
+           --depth N       Recurse into directories up to N levels deep\n\
            --help          Print this help\n\
          \n\
          Exit codes:\n\
@@ -49,19 +51,35 @@ fn main() {
     let mut paths: Vec<PathBuf> = Vec::new();
     let mut no_warnings = false;
     let mut json = false;
-    let mut recursive = false;
+    let mut max_depth: Option<usize> = Some(0);
 
-    for arg in std::env::args().skip(1) {
+    let mut args = std::env::args().skip(1).peekable();
+    while let Some(arg) = args.next() {
         match arg.as_str() {
             "--help" | "-h" => usage(),
             "--no-warnings" => no_warnings = true,
             "--json" => json = true,
-            "--recursive" => recursive = true,
+            "--recursive" => max_depth = None,
+            "--depth" => {
+                let value = args.next().unwrap_or_else(|| {
+                    eprintln!("gfm-lint: --depth requires a value");
+                    usage();
+                });
+                max_depth = Some(parse_depth(&value));
+            }
+            s if s.starts_with("--depth=") => {
+                let value = &s["--depth=".len()..];
+                if value.is_empty() {
+                    eprintln!("gfm-lint: --depth requires a value");
+                    usage();
+                }
+                max_depth = Some(parse_depth(value));
+            }
             s if s.starts_with('-') => {
                 eprintln!("Unknown option: {s}");
                 usage();
             }
-            _ => paths.push(PathBuf::from(&arg)),
+            _ => paths.push(PathBuf::from(arg)),
         }
     }
 
@@ -70,7 +88,7 @@ fn main() {
         usage();
     }
 
-    let files = match collect_inputs(&paths, recursive) {
+    let files = match collect_inputs(&paths, max_depth) {
         Ok(files) => files,
         Err(message) => {
             eprintln!("gfm-lint: {message}");
@@ -126,17 +144,34 @@ fn main() {
     }
 }
 
-fn collect_inputs(paths: &[PathBuf], recursive: bool) -> Result<Vec<PathBuf>, String> {
+fn parse_depth(value: &str) -> usize {
+    match value.parse::<usize>() {
+        Ok(depth) => depth,
+        Err(_) => {
+            eprintln!("gfm-lint: invalid depth: {value}");
+            usage();
+        }
+    }
+}
+
+fn collect_inputs(
+    paths: &[PathBuf],
+    max_depth: Option<usize>,
+) -> Result<Vec<PathBuf>, String> {
     let mut files = Vec::new();
 
     for path in paths {
-        collect_input(path, recursive, &mut files)?;
+        collect_input(path, max_depth, &mut files)?;
     }
 
     Ok(files)
 }
 
-fn collect_input(path: &PathBuf, recursive: bool, files: &mut Vec<PathBuf>) -> Result<(), String> {
+fn collect_input(
+    path: &PathBuf,
+    max_depth: Option<usize>,
+    files: &mut Vec<PathBuf>,
+) -> Result<(), String> {
     let metadata = std::fs::symlink_metadata(path)
         .map_err(|e| format!("{}: {e}", path.display()))?;
 
@@ -146,13 +181,6 @@ fn collect_input(path: &PathBuf, recursive: bool, files: &mut Vec<PathBuf>) -> R
     }
 
     if metadata.is_dir() {
-        if !recursive {
-            return Err(format!(
-                "{}: is a directory (use --recursive)",
-                path.display()
-            ));
-        }
-
         let mut entries = std::fs::read_dir(path)
             .map_err(|e| format!("{}: {e}", path.display()))?
             .collect::<Result<Vec<_>, _>>()
@@ -160,7 +188,20 @@ fn collect_input(path: &PathBuf, recursive: bool, files: &mut Vec<PathBuf>) -> R
         entries.sort_by_key(|entry| entry.path());
 
         for entry in entries {
-            collect_input(&entry.path(), recursive, files)?;
+            let entry_path = entry.path();
+            let entry_metadata = std::fs::symlink_metadata(&entry_path)
+                .map_err(|e| format!("{}: {e}", entry_path.display()))?;
+
+            if entry_metadata.is_file() {
+                files.push(entry_path);
+            } else if entry_metadata.is_dir() {
+                if max_depth != Some(0) {
+                    let next_depth = max_depth.map(|depth| depth.saturating_sub(1));
+                    collect_input(&entry_path, next_depth, files)?;
+                }
+            } else {
+                return Err(format!("{}: not a regular file or directory", entry_path.display()));
+            }
         }
 
         return Ok(());
@@ -192,11 +233,8 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("README.md"), "# Heading\n").unwrap();
 
-        let err = collect_inputs(&[dir.clone()], false).unwrap_err();
-        assert!(
-            err.contains("use --recursive"),
-            "unexpected error: {err}"
-        );
+        let files = collect_inputs(&[dir.clone()], Some(0)).unwrap();
+        assert_eq!(files, vec![dir.join("README.md")]);
 
         fs::remove_dir_all(&dir).unwrap();
     }
@@ -210,8 +248,28 @@ mod tests {
         fs::write(dir.join("README.md"), "# Heading\n").unwrap();
         fs::write(nested.join("doc.md"), "## Subheading\n").unwrap();
 
-        let files = collect_inputs(&[dir.clone()], true).unwrap();
+        let files = collect_inputs(&[dir.clone()], None).unwrap();
         assert_eq!(files, vec![dir.join("README.md"), nested.join("doc.md")]);
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn limits_recursion_depth() {
+        let dir = unique_temp_dir();
+        let nested = dir.join("nested");
+        let deeper = nested.join("deeper");
+
+        fs::create_dir_all(&deeper).unwrap();
+        fs::write(dir.join("README.md"), "# Heading\n").unwrap();
+        fs::write(nested.join("doc.md"), "## Subheading\n").unwrap();
+        fs::write(deeper.join("deep.md"), "### Deep\n").unwrap();
+
+        let files = collect_inputs(&[dir.clone()], Some(1)).unwrap();
+        assert_eq!(files, vec![dir.join("README.md"), nested.join("doc.md")]);
+
+        let files = collect_inputs(&[dir.clone()], Some(0)).unwrap();
+        assert_eq!(files, vec![dir.join("README.md")]);
 
         fs::remove_dir_all(&dir).unwrap();
     }
